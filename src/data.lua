@@ -102,27 +102,9 @@ upgrade_shorthand_ingredients_to_full(equipment_ingredients)
 upgrade_shorthand_ingredients_to_full(robot_ingredients)
 
 local base_robot = data.raw['construction-robot']['construction-robot']
-local function robot_clone_and_modify(value)
-    local t = type(value)
-    if t == 'table' then
-        local new_value = {}
-        for k, v in pairs(value) do
-            new_value[robot_clone_and_modify(k)] = robot_clone_and_modify(v)
-        end
-        return new_value
-    elseif t == 'string' then
-        if value:find('__base__/graphics/entity/construction-robot/', 1, true) == 1
-            and value:find('/', 45, true) == nil then
-            return '__early_construction__/graphics/early-construction-robot/' .. value:sub(45)
-        else
-            return value
-        end
-    else
-        return value
-    end
-end
+
 local function robot_property(name)
-    return robot_clone_and_modify(base_robot[name])
+    return base_robot[name]
 end
 
 -- Apply armor type to character animation, borrowed from Simply Power Armor MK3
@@ -138,6 +120,31 @@ for _, animation in ipairs(data.raw['character']['character']['animations']) do
         end
     end
 end
+
+local construction_robot_animation_idle = {
+	filename = "__early_construction__/graphics/early-construction-robot/construction-robot.png",
+	priority = "high",
+	line_length = 16,
+	width = 64,
+	height = 64,
+	frame_count = 1,
+	shift = util.by_pixel(0,-4.5),
+	direction_count = 16,
+	scale = 0.5
+}
+
+local construction_robot_animation_working = {
+    filename = "__early_construction__/graphics/early-construction-robot/construction-robot-working.png",
+    priority = "high",
+    line_length = 2,
+    width = 64,
+    height = 64,
+    frame_count = 2,
+    shift = util.by_pixel(-0.25, -5),
+    direction_count = 16,
+    animation_speed = 0.3,
+    scale = 0.5
+}
 
 data:extend(
     {
@@ -327,15 +334,15 @@ data:extend(
             cargo_centered = {0.0, 0.2},
             construction_vector = {0.30, 0.22},
             water_reflection = robot_property('water_reflection'),
-            idle = robot_property('idle'),
-            idle_with_cargo = robot_property('idle_with_cargo'),
-            in_motion = robot_property('in_motion'),
-            in_motion_with_cargo = robot_property('in_motion_with_cargo'),
+            idle = construction_robot_animation_idle,
+            idle_with_cargo = construction_robot_animation_idle,
+            in_motion = construction_robot_animation_idle,
+            in_motion_with_cargo = construction_robot_animation_idle,
             shadow_idle = robot_property('shadow_idle'),
             shadow_idle_with_cargo = robot_property('shadow_idle_with_cargo'),
             shadow_in_motion = robot_property('shadow_in_motion'),
             shadow_in_motion_with_cargo = robot_property('shadow_in_motion_with_cargo'),
-            working = robot_property('working'),
+            working = construction_robot_animation_working,
             shadow_working = robot_property('shadow_working'),
         },
         -- Recipes
@@ -391,7 +398,7 @@ data:extend(
         {
             type = "technology",
             name = "early-construction-light-armor",
-            icon_size = 128,
+            icon_size = 256,
             icon = "__early_construction__/graphics/technology.png",
             prerequisites = {"automation-science-pack"},
             effects = combine_effects({
@@ -418,7 +425,7 @@ data:extend(
         {
             type = "technology",
             name = "early-construction-heavy-armor",
-            icon_size = 128,
+            icon_size = 256,
             icon = "__early_construction__/graphics/technology.png",
             effects = {
                 {
