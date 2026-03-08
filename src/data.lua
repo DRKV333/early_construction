@@ -156,8 +156,8 @@ data:extend(
         {
             type = "item",
             name = "early-construction-equipment",
-            icon = "__early_construction__/graphics/early-construction-equipment.png",
-            icon_size = 32,
+            icon = "__early_construction__/graphics/early-construction-equipment-icon.png",
+            icon_size = 64,
             place_as_equipment_result = "early-construction-equipment",
             flags = {},
             subgroup = "equipment",
@@ -170,8 +170,8 @@ data:extend(
             take_result = "early-construction-equipment",
             sprite = {
                 filename = "__early_construction__/graphics/early-construction-equipment.png",
-                width = 32,
-                height = 32,
+                width = 128,
+                height = 128,
                 priority = "medium"
             },
             shape = {
