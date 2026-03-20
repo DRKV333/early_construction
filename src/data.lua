@@ -1,4 +1,6 @@
-require("util")
+local util = require("util")
+local item_sounds = require("__base__.prototypes.item_sounds")
+local simulations = require("__base__.prototypes.factoriopedia-simulations")
 
 local function combine_effects(...)
     local n = select("#", ...)
@@ -14,12 +16,14 @@ local function combine_effects(...)
     return effects
 end
 
-local ghosts_when_destroyed_effects
+local ghosts_when_destroyed_effects = nil
 if settings.startup["early-construction-enable-entity-ghosts-when-destroyed"].value then
-    ghosts_when_destroyed_effects = { {
-        type = "create-ghost-on-entity-death",
-        modifier = true
-    } }
+    ghosts_when_destroyed_effects = {
+        {
+            type = "create-ghost-on-entity-death",
+            modifier = true
+        }
+    }
 end
 
 local light_armor_ingredients = {
@@ -28,15 +32,18 @@ local light_armor_ingredients = {
     {"iron-gear-wheel", 5},
     {"electronic-circuit", 40}
 }
+
 local heavy_armor_ingredients = {
     {"early-construction-light-armor", 1},
     {"heavy-armor", 1},
     {"electronic-circuit", 200},
     {"steel-plate", 20}
 }
+
 local equipment_ingredients = {
     {"electronic-circuit", 10}
 }
+
 local robot_ingredients = {
     {"repair-pack", 1 },
     {"coal", 2 }
@@ -51,6 +58,7 @@ local function patch_strings(from, to, table)
         end
     end
 end
+
 --[[
     Bob's Electronics compatibility patch
 ]]
@@ -69,15 +77,18 @@ if data.raw.technology["deadlock-bronze-age"] ~= nil then
         {"tin-gear-wheel", 5},
         {"copper-motor", 10}
     }
+
     heavy_armor_ingredients = {
         {"early-construction-light-armor", 1},
         {"heavy-armor", 1},
         {"copper-motor", 50},
         {"bronze-chassis-small", 1}
     }
+
     equipment_ingredients = {
         {"copper-motor", 5}
     }
+
     robot_ingredients = {
         {"tin-plate", 1},
         {"copper-gear-wheel", 1},
@@ -96,6 +107,7 @@ local function upgrade_shorthand_ingredients_to_full(ingredients)
         end
     end
 end
+
 upgrade_shorthand_ingredients_to_full(light_armor_ingredients)
 upgrade_shorthand_ingredients_to_full(heavy_armor_ingredients)
 upgrade_shorthand_ingredients_to_full(equipment_ingredients)
@@ -146,262 +158,300 @@ local construction_robot_animation_working = {
     scale = 0.5
 }
 
-data:extend(
+data:extend({
+    -- Equipment
     {
-        -- Equipment
-        {
-            type = "equipment-category",
-            name = "early-construction-armor"
+        type = "equipment-category",
+        name = "early-construction-armor"
+    },
+    {
+        type = "item",
+        name = "early-construction-equipment",
+        icon = "__early_construction__/graphics/early-construction-equipment-icon.png",
+        icon_size = 64,
+        icon_mipmaps = 4,
+        place_as_equipment_result = "early-construction-equipment",
+        flags = {},
+        subgroup = "utility-equipment",
+        order = "e[robotics]-a[early-construction-equipment]",
+        inventory_move_sound = item_sounds.roboport_inventory_move,
+        pick_sound = item_sounds.roboport_inventory_pickup,
+        drop_sound = item_sounds.roboport_inventory_move,
+        stack_size = 20
+    },
+    {
+        type = "roboport-equipment",
+        name = "early-construction-equipment",
+        take_result = "early-construction-equipment",
+        sprite = {
+            filename = "__early_construction__/graphics/early-construction-equipment.png",
+            width = 128,
+            height = 128,
+            priority = "medium"
         },
-        {
-            type = "item",
-            name = "early-construction-equipment",
-            icon = "__early_construction__/graphics/early-construction-equipment-icon.png",
-            icon_size = 64,
-            place_as_equipment_result = "early-construction-equipment",
-            flags = {},
-            subgroup = "equipment",
-            order = "e[robotics]-a[early-construction-equipment]",
-            stack_size = 5
-        },
-        {
-            type = "roboport-equipment",
-            name = "early-construction-equipment",
-            take_result = "early-construction-equipment",
-            sprite = {
-                filename = "__early_construction__/graphics/early-construction-equipment.png",
-                width = 128,
-                height = 128,
-                priority = "medium"
-            },
-            shape = {
-                width = 6,
-                height = 6,
-                type = "full"
-            },
-            energy_source = {
-                type = "electric",
-                buffer_capacity = "0MJ",
-                input_flow_limit = "0kW",
-                usage_priority = "secondary-input"
-            },
-            charging_energy = "0kW",
-            robot_limit = 15,
-            construction_radius = 12,
-            spawn_and_station_height = 0.4,
-            spawn_and_station_shadow_height_offset = 0.5,
-            charge_approach_distance = 2.6,
-            robots_shrink_when_entering_and_exiting = true,
-            recharging_animation = {
-                filename = "__base__/graphics/entity/roboport/roboport-recharging.png",
-                draw_as_glow = true,
-                priority = "high",
-                width = 37,
-                height = 35,
-                frame_count = 16,
-                scale = 1.5,
-                animation_speed = 0.5
-            },
-            recharging_light = {intensity = 0.2, size = 3, color = {r = 0.5, g = 0.5, b = 1.0}},
-            stationing_offset = {0, -0.6},
-            charging_station_shift = {0, 0.5},
-            charging_station_count = 2,
-            charging_station_count_affected_by_quality = false,
-            charging_distance = 1.6,
-            charging_threshold_distance = 5,
-            categories = {"early-construction-armor"}
-        },
-        -- Armor
-        {
-            type = "equipment-grid",
-            name = "small-early-construction-equipment-grid",
+        shape = {
             width = 6,
             height = 6,
-            equipment_categories = {"early-construction-armor"}
+            type = "full"
         },
-        {
-            type = "equipment-grid",
-            name = "medium-early-construction-equipment-grid",
-            width = 12,
-            height = 6,
-            equipment_categories = {"early-construction-armor"}
+        energy_source = {
+            type = "electric",
+            buffer_capacity = "0MJ",
+            input_flow_limit = "0kW",
+            usage_priority = "secondary-input"
         },
-        {
-            type = "armor",
-            name = "early-construction-light-armor",
-            icon = "__early_construction__/graphics/light-armor.png",
-            icon_size = 32,
-            flags = {},
-            resistances = {
-                {
-                    type = "physical",
-                    decrease = 3,
-                    percent = 20
-                },
-                {
-                    type = "acid",
-                    decrease = 0,
-                    percent = 20
-                },
-                {
-                    type = "explosion",
-                    decrease = 2,
-                    percent = 20
-                },
-                {
-                    type = "fire",
-                    decrease = 0,
-                    percent = 10
-                }
+        charging_energy = "0kW",
+        robot_limit = 15,
+        construction_radius = 12,
+        spawn_and_station_height = 0.4,
+        spawn_and_station_shadow_height_offset = 0.5,
+        charge_approach_distance = 2.6,
+        robots_shrink_when_entering_and_exiting = true,
+        recharging_animation = {
+            filename = "__base__/graphics/entity/roboport/roboport-recharging.png",
+            draw_as_glow = true,
+            priority = "high",
+            width = 37,
+            height = 35,
+            frame_count = 16,
+            scale = 1.5,
+            animation_speed = 0.5
+        },
+        recharging_light = {intensity = 0.2, size = 3, color = {r = 0.5, g = 0.5, b = 1.0}},
+        stationing_offset = {0, -0.6},
+        charging_station_shift = {0, 0.5},
+        charging_station_count = 2,
+        charging_station_count_affected_by_quality = false,
+        charging_distance = 1.6,
+        charging_threshold_distance = 5,
+        categories = {"early-construction-armor"}
+    },
+    -- Armor
+    {
+        type = "equipment-grid",
+        name = "small-early-construction-equipment-grid",
+        width = 6,
+        height = 6,
+        equipment_categories = {"early-construction-armor"}
+    },
+    {
+        type = "equipment-grid",
+        name = "medium-early-construction-equipment-grid",
+        width = 12,
+        height = 6,
+        equipment_categories = {"early-construction-armor"}
+    },
+    {
+        type = "armor",
+        name = "early-construction-light-armor",
+        icon = "__early_construction__/graphics/light-armor.png",
+        icon_size = 32,
+        flags = {},
+        resistances = {
+            {
+                type = "physical",
+                decrease = 3,
+                percent = 20
             },
-            subgroup = "armor",
-            equipment_grid = "small-early-construction-equipment-grid",
-            order = "a[light-armor][early-construction]",
-            stack_size = 1,
-            infinite = true
-        },
-        {
-            type = "armor",
-            name = "early-construction-heavy-armor",
-            icon = "__early_construction__/graphics/heavy-armor.png",
-            icon_size = 32,
-            flags = {},
-            resistances = {
-                {
-                    type = "physical",
-                    decrease = 6,
-                    percent = 30
-                },
-                {
-                    type = "explosion",
-                    decrease = 20,
-                    percent = 30
-                },
-                {
-                    type = "acid",
-                    decrease = 0,
-                    percent = 40
-                },
-                {
-                    type = "fire",
-                    decrease = 0,
-                    percent = 30
-                }
+            {
+                type = "acid",
+                decrease = 0,
+                percent = 20
             },
-            subgroup = "armor",
-            equipment_grid = "medium-early-construction-equipment-grid",
-            order = "b[heavy-armor][early-construction]",
-            stack_size = 1,
-            infinite = true
+            {
+                type = "explosion",
+                decrease = 2,
+                percent = 20
+            },
+            {
+                type = "fire",
+                decrease = 0,
+                percent = 10
+            }
         },
-        -- Robot
-        {
-            type = "item",
-            name = "early-construction-robot",
-            icon = "__early_construction__/graphics/early-construction-robot.png",
-            icon_size = 64, icon_mipmaps = 4,
-            flags = {},
-            subgroup = "logistic-network",
-            order = "a[robot]-b[early-construction-robot]",
-            place_result = "early-construction-robot",
-            stack_size = 200
+        subgroup = "armor",
+        equipment_grid = "small-early-construction-equipment-grid",
+        order = "a[light-armor][early-construction]",
+        factoriopedia_simulation = simulations.factoriopedia_light_armor,
+        inventory_move_sound = item_sounds.armor_small_inventory_move,
+        pick_sound = item_sounds.armor_small_inventory_pickup,
+        drop_sound = item_sounds.armor_small_inventory_move,
+        stack_size = 1,
+        infinite = true
+    },
+    {
+        type = "armor",
+        name = "early-construction-heavy-armor",
+        icon = "__early_construction__/graphics/heavy-armor.png",
+        icon_size = 32,
+        flags = {},
+        resistances = {
+            {
+                type = "physical",
+                decrease = 6,
+                percent = 30
+            },
+            {
+                type = "explosion",
+                decrease = 20,
+                percent = 30
+            },
+            {
+                type = "acid",
+                decrease = 0,
+                percent = 40
+            },
+            {
+                type = "fire",
+                decrease = 0,
+                percent = 30
+            }
         },
-        {
-            type = "construction-robot",
-            name = "early-construction-robot",
-            icon = "__early_construction__/graphics/early-construction-robot.png",
-            icon_size = 64, icon_mipmaps = 4,
-            flags = {"placeable-player", "player-creation", "placeable-off-grid", "not-on-map"},
-            minable = {hardness = 0.1, mining_time = 0.1, result = "early-construction-robot"},
-            resistances = {{type = "fire", percent = 85}},
-            max_health = 50,
-            collision_box = {{0, 0}, {0, 0}},
-            selection_box = {{-0.5, -1.5}, {0.5, -0.5}},
-            hit_visualization_box = {{-0.1, -1.1}, {0.1, -1.0}},
-            damaged_trigger_effect = robot_property('damaged_trigger_effect'),
-            max_payload_size = 5,
-            speed = 0.06,
-            max_energy = "1MJ",
-            energy_per_tick = "0kJ",
-            speed_multiplier_when_out_of_energy = 1,
-            energy_per_move = "0kJ",
-            min_to_charge = 0.1,
-            max_to_charge = 0.2,
-            working_light = {intensity = 0.8, size = 3, color = {r = 0.85, g = 0.75, b = 0.75}},
-            dying_explosion = "explosion",
-            sparks = robot_property('sparks'),
-            working_sound = robot_property('working_sound'),
-            cargo_centered = {0.0, 0.2},
-            construction_vector = {0.30, 0.22},
-            water_reflection = robot_property('water_reflection'),
-            idle = construction_robot_animation_idle,
-            idle_with_cargo = construction_robot_animation_idle,
-            in_motion = construction_robot_animation_idle,
-            in_motion_with_cargo = construction_robot_animation_idle,
-            shadow_idle = robot_property('shadow_idle'),
-            shadow_idle_with_cargo = robot_property('shadow_idle_with_cargo'),
-            shadow_in_motion = robot_property('shadow_in_motion'),
-            shadow_in_motion_with_cargo = robot_property('shadow_in_motion_with_cargo'),
-            working = construction_robot_animation_working,
-            shadow_working = robot_property('shadow_working'),
+        subgroup = "armor",
+        equipment_grid = "medium-early-construction-equipment-grid",
+        order = "b[heavy-armor][early-construction]",
+        factoriopedia_simulation = simulations.factoriopedia_heavy_armor,
+        inventory_move_sound = item_sounds.armor_small_inventory_move,
+        pick_sound = item_sounds.armor_small_inventory_pickup,
+        drop_sound = item_sounds.armor_small_inventory_move,
+        stack_size = 1,
+        infinite = true
+    },
+    -- Robot
+    {
+        type = "item",
+        name = "early-construction-robot",
+        icon = "__early_construction__/graphics/early-construction-robot.png",
+        icon_size = 64,
+        icon_mipmaps = 4,
+        flags = {},
+        subgroup = "logistic-network",
+        order = "a[robot]-b[early-construction-robot]",
+        inventory_move_sound = item_sounds.robotic_inventory_move,
+        pick_sound = item_sounds.robotic_inventory_pickup,
+        drop_sound = item_sounds.robotic_inventory_move,
+        place_result = "early-construction-robot",
+        stack_size = 200
+        -- random_tint_color
+    },
+    {
+        type = "construction-robot",
+        name = "early-construction-robot",
+        icon = "__early_construction__/graphics/early-construction-robot.png",
+        icon_size = 64,
+        icon_mipmaps = 4,
+        flags = {"placeable-player", "player-creation", "placeable-off-grid", "not-on-map"},
+        minable = {hardness = 0.1, mining_time = 0.1, result = "early-construction-robot"},
+        resistances = {
+            {
+                type = "fire",
+                percent = 85
+            },
+            {
+                type = "electric",
+                percent = 50
+            }
         },
-        -- Recipes
-        {
-            type = "recipe",
-            name = "early-construction-light-armor",
-            enabled = false,
-            energy_required = 3,
-            ingredients = light_armor_ingredients,
-            results = { {
+        max_health = 50,
+        collision_box = {{0, 0}, {0, 0}},
+        selection_box = {{-0.5, -1.5}, {0.5, -0.5}},
+        hit_visualization_box = {{-0.1, -1.1}, {0.1, -1.0}},
+        damaged_trigger_effect = robot_property("damaged_trigger_effect"),
+        dying_explosion = "explosion",
+        -- factoriopedia_simulation
+        max_payload_size = 1,
+        speed = 0.06,
+        max_energy = "1MJ",
+        energy_per_tick = "0kJ",
+        speed_multiplier_when_out_of_energy = 1,
+        energy_per_move = "0kJ",
+        min_to_charge = 0.1,
+        max_to_charge = 0.2,
+        smoke = robot_property("smoke"),
+        sparks = robot_property("sparks"),
+        repairing_sound = robot_property("repairing_sound"),
+        working_sound = robot_property("working_sound"),
+        mined_sound_volume_modifier = 0.6,
+        icon_draw_specification = {shift = {0, -0.2}, scale = 0.5, render_layer = "air-entity-info-icon"},
+        construction_vector = {0.30, 0.22},
+        water_reflection = robot_property("water_reflection"),
+        idle = construction_robot_animation_idle,
+        idle_with_cargo = construction_robot_animation_idle,
+        in_motion = construction_robot_animation_idle,
+        in_motion_with_cargo = construction_robot_animation_idle,
+        shadow_idle = robot_property("shadow_idle"),
+        shadow_idle_with_cargo = robot_property("shadow_idle_with_cargo"),
+        shadow_in_motion = robot_property("shadow_in_motion"),
+        shadow_in_motion_with_cargo = robot_property("shadow_in_motion_with_cargo"),
+        working = construction_robot_animation_working,
+        shadow_working = robot_property("shadow_working"),
+    },
+    -- Recipes
+    {
+        type = "recipe",
+        name = "early-construction-light-armor",
+        enabled = false,
+        energy_required = 3,
+        ingredients = light_armor_ingredients,
+        results = {
+            {
                 type = "item",
                 name = "early-construction-light-armor",
                 amount = 1,
-            } },
+            }
         },
-        {
-            type = "recipe",
-            name = "early-construction-heavy-armor",
-            enabled = false,
-            energy_required = 8,
-            ingredients = heavy_armor_ingredients,
-            results = { {
+    },
+    {
+        type = "recipe",
+        name = "early-construction-heavy-armor",
+        enabled = false,
+        energy_required = 8,
+        ingredients = heavy_armor_ingredients,
+        results = {
+            {
                 type = "item",
                 name = "early-construction-heavy-armor",
                 amount = 1,
-            } },
+            }
         },
-        {
-            type = "recipe",
-            name = "early-construction-equipment",
-            enabled = false,
-            energy_required = 1,
-            ingredients = equipment_ingredients,
-            results = { {
+    },
+    {
+        type = "recipe",
+        name = "early-construction-equipment",
+        enabled = false,
+        energy_required = 1,
+        ingredients = equipment_ingredients,
+        results = {
+            {
                 type = "item",
                 name = "early-construction-equipment",
                 amount = 1,
-            } },
+            }
         },
-        {
-            type = "recipe",
-            name = "early-construction-robot",
-            enabled = false,
-            energy_required = 3,
-            ingredients = robot_ingredients,
-            results = { {
+    },
+    {
+        type = "recipe",
+        name = "early-construction-robot",
+        enabled = false,
+        energy_required = 3,
+        ingredients = robot_ingredients,
+        results = {
+            {
                 type = "item",
                 name = "early-construction-robot",
-                amount = settings.startup["early-construction-robots-per-craft"].value,
-            } },
+                amount = settings.startup["early-construction-robots-per-craft"].value --[[ @as integer ]],
+            }
         },
-        -- Technologies
-        {
-            type = "technology",
-            name = "early-construction-light-armor",
-            icon_size = 256,
-            icon = "__early_construction__/graphics/technology.png",
-            prerequisites = {"automation-science-pack"},
-            effects = combine_effects({
+    },
+    -- Technologies
+    {
+        type = "technology",
+        name = "early-construction-light-armor",
+        icon_size = 256,
+        icon = "__early_construction__/graphics/technology.png",
+        prerequisites = {"automation-science-pack"},
+        effects = combine_effects(
+            {
                 {
                     type = "unlock-recipe",
                     recipe = "early-construction-robot"
@@ -414,35 +464,36 @@ data:extend(
                     type = "unlock-recipe",
                     recipe = "early-construction-equipment"
                 },
-            }, ghosts_when_destroyed_effects),
-            unit = {
-                count = 25,
-                ingredients = {{"automation-science-pack", 1}},
-                time = 5
             },
-            order = "a-c-a"
+            ghosts_when_destroyed_effects
+        ),
+        unit = {
+            count = 25,
+            ingredients = {{"automation-science-pack", 1}},
+            time = 5
         },
-        {
-            type = "technology",
-            name = "early-construction-heavy-armor",
-            icon_size = 256,
-            icon = "__early_construction__/graphics/technology.png",
-            effects = {
-                {
-                    type = "unlock-recipe",
-                    recipe = "early-construction-heavy-armor"
-                }
+        order = "a-c-a"
+    },
+    {
+        type = "technology",
+        name = "early-construction-heavy-armor",
+        icon_size = 256,
+        icon = "__early_construction__/graphics/technology.png",
+        effects = {
+            {
+                type = "unlock-recipe",
+                recipe = "early-construction-heavy-armor"
+            }
+        },
+        prerequisites = {"heavy-armor", "early-construction-light-armor", "logistic-science-pack"},
+        unit = {
+            count = 200,
+            ingredients = {
+                {"automation-science-pack", 1},
+                {"logistic-science-pack", 1}
             },
-            prerequisites = {"heavy-armor", "early-construction-light-armor", "logistic-science-pack"},
-            unit = {
-                count = 200,
-                ingredients = {
-                    {"automation-science-pack", 1},
-                    {"logistic-science-pack", 1}
-                },
-                time = 30
-            },
-            order = "a-c-b"
-        }
+            time = 30
+        },
+        order = "a-c-b"
     }
-)
+})
