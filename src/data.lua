@@ -163,7 +163,7 @@ data:extend({
     {
         type = "equipment-category",
         name = "early-construction-armor"
-    },
+    } --[[ @as data.EquipmentCategory ]],
     {
         type = "item",
         name = "early-construction-equipment",
@@ -178,7 +178,7 @@ data:extend({
         pick_sound = item_sounds.roboport_inventory_pickup,
         drop_sound = item_sounds.roboport_inventory_move,
         stack_size = 20
-    },
+    } --[[ @as data.ItemPrototype ]],
     {
         type = "roboport-equipment",
         name = "early-construction-equipment",
@@ -225,7 +225,7 @@ data:extend({
         charging_distance = 1.6,
         charging_threshold_distance = 5,
         categories = {"early-construction-armor"}
-    },
+    } --[[ @as data.RoboportEquipmentPrototype ]],
     -- Armor
     {
         type = "equipment-grid",
@@ -233,14 +233,14 @@ data:extend({
         width = 6,
         height = 6,
         equipment_categories = {"early-construction-armor"}
-    },
+    } --[[ @as data.EquipmentGridPrototype ]],
     {
         type = "equipment-grid",
         name = "medium-early-construction-equipment-grid",
         width = 12,
         height = 6,
         equipment_categories = {"early-construction-armor"}
-    },
+    } --[[ @as data.EquipmentGridPrototype ]],
     {
         type = "armor",
         name = "early-construction-light-armor",
@@ -278,7 +278,7 @@ data:extend({
         drop_sound = item_sounds.armor_small_inventory_move,
         stack_size = 1,
         infinite = true
-    },
+    } --[[ @as data.ArmorPrototype ]],
     {
         type = "armor",
         name = "early-construction-heavy-armor",
@@ -316,7 +316,7 @@ data:extend({
         drop_sound = item_sounds.armor_small_inventory_move,
         stack_size = 1,
         infinite = true
-    },
+    } --[[ @as data.ArmorPrototype ]],
     -- Robot
     {
         type = "item",
@@ -333,7 +333,7 @@ data:extend({
         place_result = "early-construction-robot",
         stack_size = 200
         -- random_tint_color
-    },
+    } --[[ @as data.ItemPrototype ]],
     {
         type = "construction-robot",
         name = "early-construction-robot",
@@ -385,7 +385,7 @@ data:extend({
         shadow_in_motion_with_cargo = robot_property("shadow_in_motion_with_cargo"),
         working = construction_robot_animation_working,
         shadow_working = robot_property("shadow_working"),
-    },
+    } --[[ @as data.ConstructionRobotPrototype ]],
     -- Recipes
     {
         type = "recipe",
@@ -400,7 +400,7 @@ data:extend({
                 amount = 1,
             }
         },
-    },
+    } --[[ @as data.RecipePrototype ]],
     {
         type = "recipe",
         name = "early-construction-heavy-armor",
@@ -414,7 +414,7 @@ data:extend({
                 amount = 1,
             }
         },
-    },
+    } --[[ @as data.RecipePrototype ]],
     {
         type = "recipe",
         name = "early-construction-equipment",
@@ -428,7 +428,7 @@ data:extend({
                 amount = 1,
             }
         },
-    },
+    } --[[ @as data.RecipePrototype ]],
     {
         type = "recipe",
         name = "early-construction-robot",
@@ -442,7 +442,7 @@ data:extend({
                 amount = settings.startup["early-construction-robots-per-craft"].value --[[ @as integer ]],
             }
         },
-    },
+    } --[[ @as data.RecipePrototype ]],
     -- Technologies
     {
         type = "technology",
@@ -473,7 +473,7 @@ data:extend({
             time = 5
         },
         order = "a-c-a"
-    },
+    } --[[ @as data.TechnologyPrototype ]],
     {
         type = "technology",
         name = "early-construction-heavy-armor",
@@ -495,5 +495,5 @@ data:extend({
             time = 30
         },
         order = "a-c-b"
-    }
+    } --[[ @as data.TechnologyPrototype ]]
 })
