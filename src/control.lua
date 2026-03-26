@@ -1,205 +1,192 @@
-local -- Forward declare functions
-      on_robot_built,
-      on_robot_mined,
-      on_built_entity,
-      on_player_mined_entity,
-      on_tick,
-      track_robot,
-      untrack_robot,
-      create_robot_death_effect,
-      update_tick_handler,
-      on_init,
-      on_load,
-      on_configuration_changed,
-      on_configuration_changed_migrate_0_3_to_0_4,
-      on_configuration_changed_migrate_0_5_to_0_6,
-      on_configuration_changed_handle_startup_setting_changes
+script.on_init(function ()
+    storage.version = 1
 
-on_robot_built = function (event)
-    local robot = event.robot
-    if robot.name ~= 'early-construction-robot' then return end
-    track_robot(robot, event.tick + 1)
+    ---@class TrackedRobot
+    ---@field entity LuaEntity
+    ---@field destroy_when_empty boolean
+
+    ---@type table<integer, TrackedRobot>
+    storage.tracked_robots = {}
+
+    ---@type table<integer, LuaPlayer>
+    storage.players_with_early_roboport = {}
+end)
+
+---@param owner LuaEntity
+---@param robot LuaEntity
+---@return boolean
+local function is_deployed_by(owner, robot)
+    return robot.logistic_network and #robot.logistic_network.cells == 1 and robot.logistic_network.cells[1].owner == owner
 end
 
-on_robot_mined = function (event)
-    local robot = event.robot
-    if robot.name ~= 'early-construction-robot' then return end
-    track_robot(robot, event.tick + 1)
-end
+local function look_for_deployed_robots()
+    for player_index, player in pairs(storage.players_with_early_roboport) do
+        if not player.valid then
+            storage.players_with_early_roboport[player_index] = nil
+        elseif player.character then
+            robots = player.character.surface.find_entities_filtered({
+                position = player.character.position,
+                radius = 5,
+                type = "construction-robot"
+            })
 
-on_built_entity = function (event)
-    local entity = event.created_entity
-    if not entity or entity.name ~= 'early-construction-robot' then return end
-    local player = game.players[event.player_index]
-
-    entity.destroy()
-    player.print('Early construction robots cannot be deployed manually, use an early construction equipment in the armor instead.', {r=1,g=0,b=0,a=1})
-    player.insert({ name = 'early-construction-robot', count = 1 })
-end
-
-on_player_mined_entity = function (event)
-    if not event.entity or not event.entity.valid or event.entity.name ~= 'early-construction-robot' then return end
-    if storage.tracked_robots[event.entity.unit_number] ~= nil then
-        event.buffer.remove({ name = 'early-construction-robot', count = 1 })
-        create_robot_death_effect(event.entity)
-        untrack_robot(event.entity.unit_number)
-    end
-end
-
-on_tick = function (event)
-    for unit_number, entry in pairs(storage.tracked_robots) do
-        if not entry.robot.valid then
-            untrack_robot(unit_number)
-        elseif event.tick >= entry.no_destruction_before_tick then
-            local holds_items = false
-            if entry.cargo_inventory.valid and not entry.cargo_inventory.is_empty() then holds_items = true end
-            if entry.repair_inventory.valid and not entry.repair_inventory.is_empty() then holds_items = true end
-
-            if not holds_items then
-                untrack_robot(unit_number)
-                create_robot_death_effect(entry.robot)
-                entry.robot.destroy({
-                    do_cliff_correction = false,
-                    raise_destroy = true,
-                })
+            for _, robot in ipairs(robots) do
+                if not storage.tracked_robots[robot.unit_number] and is_deployed_by(player.character, robot) then
+                    storage.tracked_robots[robot.unit_number] = {
+                        entity = robot,
+                        destroy_when_empty = false
+                    }
+                end
             end
         end
     end
 end
 
-track_robot = function (robot, no_destruction_before_tick)
-    if storage.tracked_robots[robot.unit_number] then
-        untrack_robot(robot.unit_number)
+---@param robot LuaEntity
+---@param inventory defines.inventory
+---@return boolean
+local function robot_has_empty_inventory(robot, inventory)
+    local inv = robot.get_inventory(inventory)
+    if inv then
+        for i=1,#inv do
+            local stack = inv[i]
+            if stack.count > 0 then
+                return false
+            end
+        end
     end
 
-    storage.tracked_robots[robot.unit_number] = {
-        robot = robot,
-        no_destruction_before_tick = no_destruction_before_tick,
-        cargo_inventory = robot.get_inventory(defines.inventory.robot_cargo),
-        repair_inventory = robot.get_inventory(defines.inventory.robot_repair),
-    }
-    update_tick_handler()
+    return true
 end
 
-untrack_robot = function (unit_number)
-    if storage.tracked_robots[unit_number] == nil then return end
-    storage.tracked_robots[unit_number] = nil
-    update_tick_handler()
+---@param robot LuaEntity
+---@return boolean
+local function robot_has_empty_inventories(robot)
+    return robot_has_empty_inventory(robot, defines.inventory.robot_cargo) and
+        robot_has_empty_inventory(robot, defines.inventory.robot_repair)
 end
 
-create_robot_death_effect = function (robot)
+---@param robot LuaEntity
+local function robot_explode(robot)
     robot.surface.create_entity({
-        name = 'explosion-hit',
+        name = "explosion",
         position = robot.position,
-        force = robot.force,
+        force = robot.force
     })
 end
 
-update_tick_handler = function ()
-    local should_be_ticking = table_size(storage.tracked_robots) > 0
-    storage.is_ticking = should_be_ticking
-    script.on_event(defines.events.on_tick, should_be_ticking and on_tick or nil)
-end
+local function update_tracked_robots()
+    for unit_number, robot in pairs(storage.tracked_robots) do
+        if not robot.entity.valid then
+            storage.tracked_robots[unit_number] = nil
+        else
+            if robot.entity.name == "early-construction-robot" then
+                robot.entity.energy = 30000
 
-on_init = function ()
-    storage.tracked_robots = {}
-    storage.tracked_robots_count = 0
-    storage.robots_pending_destruction = {}
-    storage.forces = {}
-    for _, force in pairs(game.forces) do
-        storage.forces[force.name] = {}
-    end
-end
-
-on_load = function ()
-    if storage.is_ticking then
-        script.on_event(defines.events.on_tick, on_tick)
-    end
-end
-
-on_configuration_changed = function (changes)
-    if storage.version == nil then
-        on_configuration_changed_migrate_0_3_to_0_4()
-        on_configuration_changed_migrate_0_5_to_0_6()
-        game.print('[Early Construction] Migrated to version 0.7.')
-    end
-
-    if changes.mod_startup_settings_changed or changes.mod_changes['early_construction'] then
-        on_configuration_changed_handle_startup_setting_changes()
-    end
-end
-
-on_configuration_changed_migrate_0_3_to_0_4 = function ()
-    -- Renamed storage.tracked_robot_count to storage.tracked_robots_count
-    if storage.tracked_robot_count then
-        storage.tracked_robot_count = nil
-    end
-
-    -- Previously, this variable wasn't initialized upon init, and was instead nil-checked
-    -- now it is initialized. This variable can be safely derived from storage.tracked_robots.
-    if storage.tracked_robots_count == nil then
-        local count = 0
-        for _ in pairs(storage.tracked_robots) do
-            count = count + 1
-        end
-        storage.tracked_robots_count = count
-    end
-
-    -- Renamed storage.ticking to storage.is_ticking
-    -- update_tick_handler invoked later will take care of initializing the storage variable,
-    -- and setting up the event handler if necessary.
-    storage.ticking = nil
-
-    -- Newly introduced variables
-    if storage.robots_pending_destruction == nil then
-        storage.robots_pending_destruction = {}
-    end
-
-    update_tick_handler()
-end
-
-on_configuration_changed_migrate_0_5_to_0_6 = function ()
-    local old_tracked_robots = storage.tracked_robots
-    for k, _ in pairs(storage) do
-        storage[k] = nil
-    end
-
-    storage.version = 1
-    storage.tracked_robots = {}
-    for _, entry in pairs(old_tracked_robots) do
-        local robot = entry.robot
-        if (robot and
-            robot.valid and
-            robot.name == 'early-construction-robot' and
-            storage.tracked_robots[robot.unit_number] == nil) then
-
-            storage.tracked_robots[robot.unit_number] = {
-                robot = robot,
-                cargo_inventory = robot.get_inventory(defines.inventory.robot_cargo),
-                repair_inventory = robot.get_inventory(defines.inventory.robot_repair),
-                no_destruction_before_tick = game.tick + 1,
-            }
-        end
-    end
-
-    update_tick_handler()
-end
-
-on_configuration_changed_handle_startup_setting_changes = function ()
-    for _, force in pairs(game.forces) do
-        if force.technologies['early-construction-light-armor'].researched then
-            log(('[early_construction] resetting technology effects for force %q'):format(force.name))
-            force.reset_technology_effects()
+                if robot.destroy_when_empty then
+                    if robot_has_empty_inventories(robot.entity) then
+                        robot_explode(robot.entity)
+                        robot.entity.destroy({})
+                    end
+                else
+                    if not robot_has_empty_inventories(robot.entity) then
+                        robot.destroy_when_empty = true
+                    end
+                end
+            else
+                robot.entity.energy = 0
+            end
         end
     end
 end
 
-script.on_event(defines.events.on_robot_built_entity, on_robot_built)
-script.on_event(defines.events.on_robot_built_tile, on_robot_built)
-script.on_event(defines.events.on_robot_mined, on_robot_mined)
-script.on_event(defines.events.on_built_entity, on_built_entity)
-script.on_event(defines.events.on_player_mined_entity, on_player_mined_entity)
+script.on_nth_tick(1, function ()
+    look_for_deployed_robots()
+    update_tracked_robots()
+end)
 
-script.on_init(on_init)
-script.on_load(on_load)
-script.on_configuration_changed(on_configuration_changed)
+---@param robot LuaEntity
+---@param inventory defines.inventory
+local function spill_robot_inventory(robot, inventory)
+    local inv = robot.get_inventory(inventory)
+    if inv then
+        robot.surface.spill_inventory({
+            position = robot.position,
+            inventory = inv,
+            allow_belts = false
+        })
+    end
+end
+
+---@param robot LuaEntity
+local function spill_robot_inventories(robot)
+    spill_robot_inventory(robot, defines.inventory.robot_cargo)
+    spill_robot_inventory(robot, defines.inventory.robot_repair)
+end
+
+script.on_event(defines.events.on_worker_robot_expired, function (event)
+    if event.robot.name == "early-construction-robot" then
+        robot_explode(event.robot)
+        spill_robot_inventories(event.robot)
+    end
+end)
+
+---@param inv LuaInventory
+local function remove_robot_from_inventory(inv)
+    for i=1,#inv do
+        local stack = inv[i]
+        if stack.name == "early-construction-robot" then
+            stack.clear()
+        end
+    end
+end
+
+script.on_event(defines.events.on_player_mined_entity, function (event)
+    if storage.tracked_robots[event.entity.unit_number] then
+        robot_explode(event.entity)
+        remove_robot_from_inventory(event.buffer)
+        storage.tracked_robots[event.entity.unit_number] = nil
+    end
+end, {{ filter = "name", name = "early-construction-robot" }})
+
+---@param inv LuaInventory
+---@return boolean
+local function has_early_construction_armor(inv)
+    for i=1,#inv do
+        local stack = inv[i]
+        if stack.count > 0 and
+            (stack.name == "early-construction-light-armor" or
+            stack.name == "early-construction-heavy-armor")
+        then
+            return true
+        end
+    end
+
+    return false
+end
+
+script.on_event(defines.events.on_player_armor_inventory_changed, function (event)
+    local player = game.players[event.player_index]
+    local inv = player.get_inventory(defines.inventory.character_armor)
+
+    if inv and has_early_construction_armor(inv) then
+        storage.players_with_early_roboport[player.index] = player
+    else
+        storage.players_with_early_roboport[player.index] = nil
+    end
+end)
+
+script.on_event(defines.events.on_player_removed, function (event)
+    storage.players_with_early_roboport[event.player_index] = nil
+end)
+
+script.on_configuration_changed(function (event)
+    if event.mod_startup_settings_changed or event.mod_changes["early_construction"] then
+        for _, force in pairs(game.forces) do
+            if force.technologies["early-construction-light-armor"].researched then
+                log(("[early_construction] resetting technology effects for force %q"):format(force.name))
+                force.reset_technology_effects()
+            end
+        end
+    end
+end)
